@@ -1,0 +1,59 @@
+[tool.black]
+line-length = 120
+exclude = '''
+/(
+    \.git
+  | \.github
+  | \.idea
+  | \.vscode
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | services
+  | fetch
+  | \.temp
+)/
+'''
+
+[build-system]
+requires = ["setuptools>=75.2.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jsp-to-utf8-headers"
+version = "0.0.1"
+description = "Neo Core sv precommit scipts"
+keywords = ["SVN", "precommit"]
+readme = "README.md"
+authors = [
+    { name = "lhubert" },
+]
+maintainers = [
+    { name = "lhubert" },
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Hardware",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "chardet==5.2.0"
+]
+optional-dependencies = { dev = [
+    "black==24.8.0",
+    "build>=1.2.2.post1",
+    "setuptools>=75.2.0",
+] }
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[project.scripts]
+jsp-to-utf8-headers = "jsp_to_utf8_headers.__main__:main"
