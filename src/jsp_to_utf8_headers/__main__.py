@@ -3,16 +3,12 @@ import re
 import sys
 from pathlib import Path
 
-NEW_PAGE_CONTENT_TYPE_DIRECTIVE = (
-    '<%@page contentType="text/html;charset=UTF-8"%>'
-)
+NEW_PAGE_CONTENT_TYPE_DIRECTIVE = '<%@page contentType="text/html;charset=UTF-8"%>'
 
-EXISTING_PAGE_CONTENT_TYPE_REGEX = re.compile(
-    r"<\s*%\s*@\s*page[^%]*contentType\s?=[^%]*%\s*>", re.IGNORECASE
-)
+EXISTING_PAGE_CONTENT_TYPE_REGEX = re.compile(r"<\s*%\s*@\s*page[^%]*contentType\s?=[^%]*%\s*>", re.IGNORECASE)
 
 REMOVAL_PAGE_DIRECTIVE_REGEX = re.compile(
-    r'[ \t\f]*<%\s*@\s*page[^%]*contentType\s?=(?:(?!xml)[^%])*%>\s*[\r\n]*',
+    r"[ \t\f]*<%\s*@\s*page[^%]*contentType\s?=(?:(?!xml)[^%])*%>\s*[\r\n]*",
     re.IGNORECASE,
 )
 
@@ -21,9 +17,7 @@ REMOVAL_META_HTTP_EQUIV_REGEX = re.compile(
     re.IGNORECASE,
 )
 
-REMOVAL_META_CHARSET_REGEX = re.compile(
-    r'[ \t\f]*<meta[^>]*charset=["\']?[^>]*>[\r\n]*', re.IGNORECASE
-)
+REMOVAL_META_CHARSET_REGEX = re.compile(r'[ \t\f]*<meta[^>]*charset=["\']?[^>]*>[\r\n]*', re.IGNORECASE)
 
 REMOVAL_FORM_ACCEPT_CHARSET_REGEX = re.compile(
     r'(<form[^>]+)\s*(?:accept-charset|acceptCharset)\s?=\s?["\'][^"\']+["\']',
@@ -46,9 +40,7 @@ def process_files(files_to_process: list[Path], verbose: bool):
 
     modified_files = set()
 
-    print(
-        "Removing existing contentType directives and meta tags from JSP files..."
-    )
+    print("Removing existing contentType directives and meta tags from JSP files...")
 
     for file_path in files_to_process:
         try:
@@ -82,9 +74,7 @@ def process_files(files_to_process: list[Path], verbose: bool):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Process JSP files to standardize page contentType directives."
-    )
+    parser = argparse.ArgumentParser(description="Process JSP files to standardize page contentType directives.")
     parser.add_argument(
         "paths",
         metavar="path",
@@ -126,11 +116,7 @@ def main():
                 )
 
     initial_count = len(files_to_process)
-    files_to_process = [
-        p
-        for p in files_to_process
-        if not any(p.match(pattern) for pattern in IGNORE_PATTERNS)
-    ]
+    files_to_process = [p for p in files_to_process if not any(p.match(pattern) for pattern in IGNORE_PATTERNS)]
 
     if args.verbose:
         print(
