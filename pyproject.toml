@@ -57,3 +57,6 @@ package-dir = { "" = "src" }
 
 [project.scripts]
 jsp-to-utf8-headers = "jsp_to_utf8_headers.__main__:main"
+clone-patch-commit = "clone_patch_commit.__main__:main"
+list-svn-branches = "list_svn_branches.__main__:main"
+svn-empty-merge = "svn_empty_merge.__main__:main"

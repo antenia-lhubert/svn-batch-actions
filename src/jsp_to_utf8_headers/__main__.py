@@ -32,6 +32,48 @@ IGNORE_PATTERNS = [
     "**/node_modules/**/*",
 ]
 
+TARGETED_REPLACEMENTS = [
+    {
+        "file_pattern": "src/com/leaderinfo/novanet/commons/ParametrageNovanet.java",
+        "regex": re.compile(r"&characterEncoding=latin1"),
+        "replacement": "&characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci",
+        "description": "Fix JDBC connection encoding"
+    },
+    {
+        "file_pattern": "novanet/WEB-INF/web.xml",
+        "regex": re.compile(r"""<display-name>novanet</display-name>
+	
+	<context-param>"""),
+        "replacement": """<display-name>novanet</display-name>
+
+    <filter>
+        <filter-name>UTF_8_characterEncodingFilter</filter-name>
+        <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>UTF-8</param-value>
+        </init-param>
+        <init-param>
+            <param-name>forceEncoding</param-name>
+            <param-value>false</param-value>
+        </init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>UTF_8_characterEncodingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+    
+    <context-param>""",
+        "description": "Add web.xml character encoding filter"
+    },
+    {
+        "file_pattern": "novanet/WEB-INF/web.xml",
+        "regex": re.compile(r"<page-encoding>ISO-8859-1</page-encoding>"),
+        "replacement": "<page-encoding>WINDOWS-1252</page-encoding>",
+        "description": "set web.xml JSP processing to WINDOWS-1252"
+    },
+]
+
 
 def process_files(files_to_process: list[Path], verbose: bool):
     if not files_to_process:
@@ -52,6 +94,9 @@ def process_files(files_to_process: list[Path], verbose: bool):
             content = REMOVAL_META_CHARSET_REGEX.sub("", content)
             content = REMOVAL_FORM_ACCEPT_CHARSET_REGEX.sub(r"\1", content)
 
+            # Remove all leading whitespace (the removal regexes handle trailing whitespace)
+            content = content.lstrip()
+
             if not EXISTING_PAGE_CONTENT_TYPE_REGEX.search(content):
                 content = NEW_PAGE_CONTENT_TYPE_DIRECTIVE + "\n" + content
 
@@ -71,6 +116,48 @@ def process_files(files_to_process: list[Path], verbose: bool):
             print("Run with -v or --verbose for details on each file.")
     else:
         print("No files were modified.")
+
+
+def apply_targeted_replacements(base_path: Path, verbose: bool):
+    if not TARGETED_REPLACEMENTS:
+        return
+
+    print("\nApplying targeted regex replacements...")
+    modified_files = set()
+
+    for replacement_config in TARGETED_REPLACEMENTS:
+        file_pattern = replacement_config["file_pattern"]
+        regex = replacement_config["regex"]
+        replacement = replacement_config["replacement"]
+        description = replacement_config.get("description", "No description provided")
+
+        if verbose:
+            print(f"\nProcessing replacement: {description}")
+            print(f"  Pattern: {file_pattern}")
+
+        matching_files = list(base_path.rglob(file_pattern))
+
+        for file_path in matching_files:
+            if any(file_path.match(pattern) for pattern in IGNORE_PATTERNS):
+                continue
+
+            try:
+                original_content = file_path.read_text(encoding="latin1")
+                content = regex.sub(replacement, original_content)
+
+                if content != original_content:
+                    if verbose:
+                        print(f"  Modified: {file_path}")
+                    modified_files.add(file_path)
+                    file_path.write_text(content, encoding="latin1")
+
+            except (IOError, UnicodeDecodeError) as e:
+                print(f"Error processing file {file_path}: {e}", file=sys.stderr)
+
+    if modified_files:
+        print(f"\nTargeted replacements modified {len(modified_files)} file(s).")
+    elif verbose:
+        print("\nNo files were modified by targeted replacements.")
 
 
 def main():
@@ -125,6 +212,12 @@ def main():
         )
 
     process_files(files_to_process, args.verbose)
+
+    for input_path_str in args.paths:
+        input_path = Path(input_path_str).resolve()
+        if input_path.exists():
+            base_path = input_path if input_path.is_dir() else input_path.parent
+            apply_targeted_replacements(base_path, args.verbose)
 
 
 if __name__ == "__main__":
