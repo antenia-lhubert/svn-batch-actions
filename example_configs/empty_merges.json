@@ -1,0 +1,31 @@
+{
+  "repository_base": "svn://leader-svn.leaderinfo.com/novanet",
+  "workspace": "./.temp",
+  "log_dir": "./logs",
+  "actions": [
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_2a",
+      "rev": "68500",
+      "author": "lhubert",
+      "empty": true,
+      "msg": "Record merge from version-1.5_validee r68500"
+    },
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_aesio",
+      "rev": "68500",
+      "author": "lhubert",
+      "empty": true,
+      "msg": "Record merge from version-1.5_validee r68500"
+    },
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_airbus",
+      "rev": "68500",
+      "author": "lhubert",
+      "empty": true,
+      "msg": "Record merge from version-1.5_validee r68500"
+    }
+  ]
+}

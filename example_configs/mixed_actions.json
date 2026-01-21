@@ -1,0 +1,31 @@
+{
+  "repository_base": "svn://leader-svn.leaderinfo.com/novanet",
+  "workspace": "./.temp",
+  "log_dir": "./logs",
+  "actions": [
+    {
+      "from": "versions/version-1.4_mudetaf",
+      "to": "versions/version-1.5_mudetaf",
+      "rev": "68000",
+      "author": "lhubert",
+      "empty": false,
+      "patch": false,
+      "msg": "Merge encoding fixes from version-1.4_mudetaf r68000"
+    },
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_mudetaf",
+      "rev": "68500",
+      "author": "lhubert",
+      "empty": false,
+      "patch": true,
+      "msg": "Merge from validee r68500 with UTF-8 patches"
+    },
+    {
+      "to": "versions/version-1.5_mudetaf",
+      "author": "lhubert",
+      "patch": true,
+      "msg": "[BUG] - Mantis : 65813 : Apply UTF-8 encoding patches"
+    }
+  ]
+}

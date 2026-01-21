@@ -1,0 +1,47 @@
+{
+  "repository_base": "svn://leader-svn.leaderinfo.com/novanet",
+  "workspace": "./.temp",
+  "log_dir": "./logs",
+  "actions": [
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_camca",
+      "rev": "195512",
+      "author": "lhubert",
+      "msg": "[MERGE] r195512 | lhubert | 2026-01-21 09:30:55 CEST\n[BUG_TRANSVERSAL] - Mantis : 65813 : Résolution des problèmes d'encodage dans NEO Core\n\n> Surcharge du charset réponse des JSP en UTF-8\n> Configurations\n\t\t\t\t\t",
+      "empty": true
+    },
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_camcalux",
+      "rev": "195512",
+      "author": "lhubert",
+      "msg": "[MERGE] r195512 | lhubert | 2026-01-21 09:30:55 CEST\n[BUG_TRANSVERSAL] - Mantis : 65813 : Résolution des problèmes d'encodage dans NEO Core\n\n> Surcharge du charset réponse des JSP en UTF-8\n> Configurations\n\t\t\t\t\t",
+      "empty": true
+    },
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_faa",
+      "rev": "195512",
+      "author": "lhubert",
+      "msg": "[MERGE] r195512 | lhubert | 2026-01-21 09:30:55 CEST\n[BUG_TRANSVERSAL] - Mantis : 65813 : Résolution des problèmes d'encodage dans NEO Core\n\n> Surcharge du charset réponse des JSP en UTF-8\n> Configurations\n\t\t\t\t\t",
+      "empty": true
+    },
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_generation",
+      "rev": "195512",
+      "author": "lhubert",
+      "msg": "[MERGE] r195512 | lhubert | 2026-01-21 09:30:55 CEST\n[BUG_TRANSVERSAL] - Mantis : 65813 : Résolution des problèmes d'encodage dans NEO Core\n\n> Surcharge du charset réponse des JSP en UTF-8\n> Configurations\n\t\t\t\t\t",
+      "empty": true
+    },
+    {
+      "from": "versions/version-1.5_validee",
+      "to": "versions/version-1.5_mutualisee",
+      "rev": "195512",
+      "author": "lhubert",
+      "msg": "[MERGE] r195512 | lhubert | 2026-01-21 09:30:55 CEST\n[BUG_TRANSVERSAL] - Mantis : 65813 : Résolution des problèmes d'encodage dans NEO Core\n\n> Surcharge du charset réponse des JSP en UTF-8\n> Configurations\n\t\t\t\t\t",
+      "empty": true
+    }
+  ]
+}
