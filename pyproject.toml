@@ -25,7 +25,7 @@ requires = ["setuptools>=75.2.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jsp-to-utf8-headers"
+name = "svn-batch-actions"
 version = "0.0.1"
 description = "Neo Core sv precommit scipts"
 keywords = ["SVN", "precommit"]
