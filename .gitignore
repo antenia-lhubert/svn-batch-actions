@@ -3,5 +3,6 @@
 .venv/
 .venvwin/
 *.egg-info/
-.claude
-.temp
+.claude/
+.temp/
+logs/
