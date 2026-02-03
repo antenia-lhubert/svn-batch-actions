@@ -177,6 +177,9 @@ Action types:
     parser.add_argument("--log-dir", type=str, help="Override log directory from config")
     parser.add_argument("--workspace", type=str, help="Override workspace directory from config")
     parser.add_argument("--no-commit", action="store_true", help="Apply patches but skip commit and preserve workspace")
+    parser.add_argument(
+        "--apply-only", action="store_true", help="Skip checkout; apply patches to existing workspace only"
+    )
 
     args = parser.parse_args()
 
@@ -188,6 +191,18 @@ Action types:
     workspace = Path(args.workspace) if args.workspace else Path(config.get("workspace", "./.temp"))
     log_dir = Path(args.log_dir) if args.log_dir else Path(config.get("log_dir", "./logs"))
 
+    # Validate --apply-only is only used with PATCH actions
+    if args.apply_only:
+        for i, action in enumerate(config["actions"]):
+            action_type = ActionLogger._infer_action_type(action)
+            if action_type != "PATCH":
+                print(f"Error: --apply-only can only be used with PATCH actions", file=sys.stderr)
+                print(
+                    f"Action {i + 1} is of type {action_type}, which requires checkout and merge operations",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
     # Print summary
     print_action_summary(config)
 
@@ -197,6 +212,10 @@ Action types:
     if args.no_commit:
         print("\n[NO COMMIT MODE] - Changes will be applied but not committed")
         print(f"Workspace will be preserved at: {workspace.resolve()}")
+
+    if args.apply_only:
+        print("\n[APPLY ONLY MODE] - Skipping checkout; patches will be applied to existing workspace")
+        print(f"Expected workspace location: {workspace.resolve()}")
 
     # Confirm execution
     if not args.yes and not args.dry_run:
@@ -214,6 +233,7 @@ Action types:
         logger=logger,
         dry_run=args.dry_run,
         no_commit=args.no_commit,
+        apply_only=args.apply_only,
     )
 
     # Execute actions

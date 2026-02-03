@@ -26,12 +26,14 @@ class ActionExecutor:
         logger: ActionLogger,
         dry_run: bool = False,
         no_commit: bool = False,
+        apply_only: bool = False,
     ):
         self.repository_base = repository_base.rstrip("/")
         self.workspace = Path(workspace)
         self.logger = logger
         self.dry_run = dry_run
         self.no_commit = no_commit
+        self.apply_only = apply_only
 
         # Ensure workspace exists
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -82,16 +84,24 @@ class ActionExecutor:
         working_dir = self.workspace / branch_name
 
         try:
-            # Clean up existing directory
-            cleanup_directory(working_dir, self.logger.verbose)
+            # Skip checkout if apply-only mode
+            if self.apply_only:
+                self.logger.log_step("Checkout skipped", f"Using existing workspace at {working_dir}")
+                if not working_dir.exists():
+                    raise SVNCommandError(
+                        f"Workspace does not exist: {working_dir}\nCheckout the branch first or run without --apply-only"
+                    )
+            else:
+                # Clean up existing directory
+                cleanup_directory(working_dir, self.logger.verbose)
 
-            # Checkout target branch
-            self.logger.log_step("Checkout", f"Checking out {target_url}")
-            if not self.dry_run:
-                try:
-                    svn_checkout(target_url, working_dir, self.logger.verbose)
-                except Exception as e:
-                    raise SVNCommandError(f"Checkout failed for {target_url}\n{e}") from e
+                # Checkout target branch
+                self.logger.log_step("Checkout", f"Checking out {target_url}")
+                if not self.dry_run:
+                    try:
+                        svn_checkout(target_url, working_dir, self.logger.verbose)
+                    except Exception as e:
+                        raise SVNCommandError(f"Checkout failed for {target_url}\n{e}") from e
 
             # Apply patches
             self.logger.log_step("Apply patches", "Running patch script")

@@ -29,7 +29,7 @@ black .
 ### Running the Tools
 ```bash
 # Main tool: Execute SVN batch actions from a config file
-svn-batch <config.json> [--dry-run] [--verbose] [-y] [--no-commit]
+svn-batch <config.json> [--dry-run] [--verbose] [-y] [--no-commit] [--apply-only]
 
 # List SVN branches with filtering
 list-svn-branches <repo_url> [-p pattern] [-v] [-f] [-o output.txt]
@@ -38,10 +38,23 @@ list-svn-branches <repo_url> [-p pattern] [-v] [-f] [-o output.txt]
 **Command-line options:**
 - `--dry-run`: Validate config and show execution plan without making any SVN changes
 - `--no-commit`: Checkout and apply patches but skip commit step; workspace is preserved for review
+- `--apply-only`: Skip checkout step; apply patches to existing workspace only (PATCH actions only)
 - `--verbose` / `-v`: Show detailed output including SVN command execution
 - `-y` / `--yes`: Skip interactive confirmation prompt
 - `--log-dir`: Override log directory from config
 - `--workspace`: Override workspace directory from config
+
+**Common workflows:**
+```bash
+# Apply patches without committing (performs checkout)
+svn-batch todo.json --no-commit -y
+
+# Apply patches to already-checked-out workspace (skips checkout, commits by default)
+svn-batch todo.json --apply-only -y
+
+# Apply patches to existing workspace without committing (for manual review)
+svn-batch todo.json --apply-only --no-commit -y
+```
 
 ## Architecture
 
@@ -142,6 +155,7 @@ JSON structure validated at load time:
 - **Windows compatibility**: Special handling for file locks and readonly attributes during cleanup
 - **Dry run mode**: Skips all actual SVN operations but runs validation and shows execution plan
 - **No-commit mode**: Performs checkout and applies patches but skips commit step; workspace is preserved for manual review/commit
+- **Apply-only mode**: Skips checkout and applies patches to existing workspace (PATCH actions only); useful for re-applying patches to already-checked-out directories
 - **Confirmation prompt**: Interactive `[y/N]` confirmation before execution (skip with `-y`)
 
 ## Adding New Patches
