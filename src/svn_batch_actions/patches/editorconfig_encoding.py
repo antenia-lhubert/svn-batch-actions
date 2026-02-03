@@ -81,10 +81,29 @@ def detect_encoding(file_path: Path) -> Optional[str]:
         Normalized encoding name, or None if detection failed
     """
     try:
-        # Try charset_normalizer first (most accurate)
-        result = from_path(file_path).best()
-        if result and result.encoding:
-            return normalize_encoding_name(result.encoding)
+        # Get all candidates from charset_normalizer
+        results = from_path(file_path)
+
+        if results:
+            # Build a map of all detected encodings
+            encodings_found = {normalize_encoding_name(r.encoding): r for r in results}
+
+            # Get the best match
+            best = results.best()
+            if best and best.encoding:
+                best_encoding = normalize_encoding_name(best.encoding)
+
+                # Special handling: If charset-normalizer detected any cp12xx encoding
+                # (cp1250, cp1251, cp1253, cp1254, cp1255, cp1256, cp1257, cp1258)
+                # but cp1252 (Western European) is also a candidate, prefer cp1252.
+                # These encodings are very similar, and cp1252 is by far the most common
+                # in Western projects. Misidentification is common with limited text samples.
+                if best_encoding.startswith("cp12") and best_encoding != "cp1252":
+                    if "cp1252" in encodings_found:
+                        # Always prefer cp1252 over other cp12xx variants
+                        return "cp1252"
+
+                return best_encoding
     except Exception:
         pass
 
@@ -200,6 +219,12 @@ def transform_file_encoding(
     Returns:
         True if file was modified, False otherwise
     """
+    # Handle EditorConfig "unset" convention
+    if target_charset and target_charset.lower().strip() == "unset":
+        target_charset = None
+    if target_line_ending and target_line_ending.lower().strip() == "unset":
+        target_line_ending = None
+
     if not target_charset and not target_line_ending:
         return False
 
@@ -418,6 +443,12 @@ def apply(working_dir: Path, verbose: bool = False) -> None:
         # Extract relevant properties
         target_charset = props.get("charset")
         target_line_ending = props.get("end_of_line")
+
+        # Normalize "unset" values to None (EditorConfig convention)
+        if target_charset and target_charset.lower().strip() == "unset":
+            target_charset = None
+        if target_line_ending and target_line_ending.lower().strip() == "unset":
+            target_line_ending = None
 
         # Skip if no relevant properties
         if not target_charset and not target_line_ending:
