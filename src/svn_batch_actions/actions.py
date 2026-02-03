@@ -24,12 +24,14 @@ class ActionExecutor:
         repository_base: str,
         workspace: Path,
         logger: ActionLogger,
-        dry_run: bool = False
+        dry_run: bool = False,
+        no_commit: bool = False,
     ):
-        self.repository_base = repository_base.rstrip('/')
+        self.repository_base = repository_base.rstrip("/")
         self.workspace = Path(workspace)
         self.logger = logger
         self.dry_run = dry_run
+        self.no_commit = no_commit
 
         # Ensure workspace exists
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -70,12 +72,13 @@ class ActionExecutor:
         to_branch = action["to"]
         author = action.get("author")
         msg = action["msg"]
+        enabled_patches = action.get("enabled_patches")
 
         self.logger.log_step("Starting patch operation")
 
         # Build full URL
         target_url = f"{self.repository_base}/{to_branch}"
-        branch_name = to_branch.split('/')[-1]
+        branch_name = to_branch.split("/")[-1]
         working_dir = self.workspace / branch_name
 
         try:
@@ -94,7 +97,7 @@ class ActionExecutor:
             self.logger.log_step("Apply patches", "Running patch script")
             if not self.dry_run:
                 try:
-                    self._apply_patches(working_dir)
+                    self._apply_patches(working_dir, enabled_patches=enabled_patches)
                 except Exception as e:
                     raise SVNCommandError(f"Patch application failed\n{e}") from e
 
@@ -107,20 +110,26 @@ class ActionExecutor:
                     self.logger.complete_action(True, "No changes after patch")
                     return True
 
-            # Commit
-            self.logger.log_step("Commit", f"Committing with message: {msg}")
-            if not self.dry_run:
-                try:
-                    has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
-                    self.logger.log_step("Commit result", output)
-                except Exception as e:
-                    raise SVNCommandError(f"Commit failed\n{e}") from e
+            # Commit (skip if no_commit mode)
+            if self.no_commit:
+                self.logger.log_step("Commit skipped", f"No-commit mode: changes preserved in {working_dir}")
+                self.logger.complete_action(True, "Patch applied successfully (not committed)")
+            else:
+                self.logger.log_step("Commit", f"Committing with message: {msg}")
+                if not self.dry_run:
+                    try:
+                        has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
+                        self.logger.log_step("Commit result", output)
+                    except Exception as e:
+                        raise SVNCommandError(f"Commit failed\n{e}") from e
 
-            self.logger.complete_action(True, "Patch applied and committed successfully")
+                self.logger.complete_action(True, "Patch applied and committed successfully")
+
             return True
 
         finally:
-            if not self.dry_run:
+            # Skip cleanup in no-commit mode to preserve workspace
+            if not self.dry_run and not self.no_commit:
                 cleanup_directory(working_dir, self.logger.verbose)
 
     def _execute_empty_merge(self, action: dict) -> bool:
@@ -136,7 +145,7 @@ class ActionExecutor:
         # Build URLs
         source_url = f"{self.repository_base}/{from_branch}"
         target_url = f"{self.repository_base}/{to_branch}"
-        branch_name = to_branch.split('/')[-1]
+        branch_name = to_branch.split("/")[-1]
         working_dir = self.workspace / branch_name
 
         try:
@@ -155,11 +164,7 @@ class ActionExecutor:
             self.logger.log_step("Record merge", f"From {from_branch} r{revision}")
             if not self.dry_run:
                 success, output = svn_merge(
-                    working_dir,
-                    source_url,
-                    revision,
-                    record_only=True,
-                    verbose=self.logger.verbose
+                    working_dir, source_url, revision, record_only=True, verbose=self.logger.verbose
                 )
 
                 if not success:
@@ -179,20 +184,26 @@ class ActionExecutor:
                     self.logger.complete_action(True, "No changes (already merged)")
                     return True
 
-            # Commit
-            self.logger.log_step("Commit", f"Committing merge info")
-            if not self.dry_run:
-                try:
-                    has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
-                    self.logger.log_step("Commit result", output)
-                except Exception as e:
-                    raise SVNCommandError(f"Commit failed\n{e}") from e
+            # Commit (skip if no_commit mode)
+            if self.no_commit:
+                self.logger.log_step("Commit skipped", f"No-commit mode: changes preserved in {working_dir}")
+                self.logger.complete_action(True, "Empty merge completed successfully (not committed)")
+            else:
+                self.logger.log_step("Commit", f"Committing merge info")
+                if not self.dry_run:
+                    try:
+                        has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
+                        self.logger.log_step("Commit result", output)
+                    except Exception as e:
+                        raise SVNCommandError(f"Commit failed\n{e}") from e
 
-            self.logger.complete_action(True, "Empty merge completed successfully")
+                self.logger.complete_action(True, "Empty merge completed successfully")
+
             return True
 
         finally:
-            if not self.dry_run:
+            # Skip cleanup in no-commit mode to preserve workspace
+            if not self.dry_run and not self.no_commit:
                 cleanup_directory(working_dir, self.logger.verbose)
 
     def _execute_merge(self, action: dict, with_patch: bool = False) -> bool:
@@ -202,6 +213,7 @@ class ActionExecutor:
         revision = int(action["rev"])
         author = action.get("author")
         msg = action["msg"]
+        enabled_patches = action.get("enabled_patches")
 
         merge_type = "merge with patch" if with_patch else "merge"
         self.logger.log_step(f"Starting {merge_type}")
@@ -209,7 +221,7 @@ class ActionExecutor:
         # Build URLs
         source_url = f"{self.repository_base}/{from_branch}"
         target_url = f"{self.repository_base}/{to_branch}"
-        branch_name = to_branch.split('/')[-1]
+        branch_name = to_branch.split("/")[-1]
         working_dir = self.workspace / branch_name
 
         try:
@@ -228,11 +240,7 @@ class ActionExecutor:
             self.logger.log_step("Merge", f"From {from_branch} r{revision}")
             if not self.dry_run:
                 success, output = svn_merge(
-                    working_dir,
-                    source_url,
-                    revision,
-                    record_only=False,
-                    verbose=self.logger.verbose
+                    working_dir, source_url, revision, record_only=False, verbose=self.logger.verbose
                 )
 
                 if not success:
@@ -251,7 +259,7 @@ class ActionExecutor:
                 self.logger.log_step("Apply patches", "Running patch script")
                 if not self.dry_run:
                     try:
-                        self._apply_patches(working_dir)
+                        self._apply_patches(working_dir, enabled_patches=enabled_patches)
                     except Exception as e:
                         raise SVNCommandError(f"Patch application failed after merge\n{e}") from e
 
@@ -264,20 +272,26 @@ class ActionExecutor:
                     self.logger.complete_action(True, "No changes after merge")
                     return True
 
-            # Commit
-            self.logger.log_step("Commit", f"Committing changes")
-            if not self.dry_run:
-                try:
-                    has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
-                    self.logger.log_step("Commit result", output)
-                except Exception as e:
-                    raise SVNCommandError(f"Commit failed\n{e}") from e
+            # Commit (skip if no_commit mode)
+            if self.no_commit:
+                self.logger.log_step("Commit skipped", f"No-commit mode: changes preserved in {working_dir}")
+                self.logger.complete_action(True, f"{merge_type.capitalize()} completed successfully (not committed)")
+            else:
+                self.logger.log_step("Commit", f"Committing changes")
+                if not self.dry_run:
+                    try:
+                        has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
+                        self.logger.log_step("Commit result", output)
+                    except Exception as e:
+                        raise SVNCommandError(f"Commit failed\n{e}") from e
 
-            self.logger.complete_action(True, f"{merge_type.capitalize()} completed successfully")
+                self.logger.complete_action(True, f"{merge_type.capitalize()} completed successfully")
+
             return True
 
         finally:
-            if not self.dry_run:
+            # Skip cleanup in no-commit mode to preserve workspace
+            if not self.dry_run and not self.no_commit:
                 cleanup_directory(working_dir, self.logger.verbose)
 
     def _apply_patches(self, working_dir: Path, enabled_patches: list[str] = None):

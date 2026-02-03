@@ -87,7 +87,7 @@ def validate_config(config: dict) -> list[str]:
 def load_config(config_path: Path) -> dict:
     """Load and validate configuration from JSON file."""
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
     except FileNotFoundError:
         print(f"Error: Configuration file not found: {config_path}", file=sys.stderr)
@@ -132,9 +132,9 @@ def confirm_execution() -> bool:
     """Ask user to confirm execution."""
     while True:
         response = input("\nProceed with execution? [y/N]: ").strip().lower()
-        if response in ['y', 'yes']:
+        if response in ["y", "yes"]:
             return True
-        elif response in ['n', 'no', '']:
+        elif response in ["n", "no", ""]:
             return False
         else:
             print("Please answer 'y' or 'n'")
@@ -167,39 +167,16 @@ Action types:
   - EMPTY_MERGE: 'from', 'to', 'rev', 'empty': true, 'msg'
   - MERGE: 'from', 'to', 'rev', 'msg'
   - MERGE_WITH_PATCH: 'from', 'to', 'rev', 'patch': true, 'msg'
-        """
+        """,
     )
 
-    parser.add_argument(
-        "config",
-        type=str,
-        help="Path to JSON configuration file"
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Enable verbose output"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Simulate actions without making changes"
-    )
-    parser.add_argument(
-        "-y", "--yes",
-        action="store_true",
-        help="Skip confirmation prompt"
-    )
-    parser.add_argument(
-        "--log-dir",
-        type=str,
-        help="Override log directory from config"
-    )
-    parser.add_argument(
-        "--workspace",
-        type=str,
-        help="Override workspace directory from config"
-    )
+    parser.add_argument("config", type=str, help="Path to JSON configuration file")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--dry-run", action="store_true", help="Simulate actions without making changes")
+    parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
+    parser.add_argument("--log-dir", type=str, help="Override log directory from config")
+    parser.add_argument("--workspace", type=str, help="Override workspace directory from config")
+    parser.add_argument("--no-commit", action="store_true", help="Apply patches but skip commit and preserve workspace")
 
     args = parser.parse_args()
 
@@ -217,6 +194,10 @@ Action types:
     if args.dry_run:
         print("\n[DRY RUN MODE] - No actual changes will be made")
 
+    if args.no_commit:
+        print("\n[NO COMMIT MODE] - Changes will be applied but not committed")
+        print(f"Workspace will be preserved at: {workspace.resolve()}")
+
     # Confirm execution
     if not args.yes and not args.dry_run:
         if not confirm_execution():
@@ -231,7 +212,8 @@ Action types:
         repository_base=config["repository_base"],
         workspace=workspace,
         logger=logger,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        no_commit=args.no_commit,
     )
 
     # Execute actions
@@ -280,6 +262,7 @@ Action types:
 
             if args.verbose:
                 import traceback
+
                 print("Full traceback:", file=sys.stderr)
                 traceback.print_exception(type(failure_exception), failure_exception, failure_exception.__traceback__)
 

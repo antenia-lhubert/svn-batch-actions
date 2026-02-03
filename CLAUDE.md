@@ -29,11 +29,19 @@ black .
 ### Running the Tools
 ```bash
 # Main tool: Execute SVN batch actions from a config file
-svn-batch <config.json> [--dry-run] [--verbose] [-y]
+svn-batch <config.json> [--dry-run] [--verbose] [-y] [--no-commit]
 
 # List SVN branches with filtering
 list-svn-branches <repo_url> [-p pattern] [-v] [-f] [-o output.txt]
 ```
+
+**Command-line options:**
+- `--dry-run`: Validate config and show execution plan without making any SVN changes
+- `--no-commit`: Checkout and apply patches but skip commit step; workspace is preserved for review
+- `--verbose` / `-v`: Show detailed output including SVN command execution
+- `-y` / `--yes`: Skip interactive confirmation prompt
+- `--log-dir`: Override log directory from config
+- `--workspace`: Override workspace directory from config
 
 ## Architecture
 
@@ -124,7 +132,7 @@ JSON structure validated at load time:
 - **Stop on first failure**: Actions execute sequentially; first error stops execution
 - **Conflict detection**: Merge conflicts trigger `svn revert -R` and raise `SVNCommandError`
 - **Detailed failure reporting**: Shows failed action config, error type, message, and optional traceback (`--verbose`)
-- **Workspace cleanup**: Always runs in `finally` blocks to ensure working directories are removed
+- **Workspace cleanup**: Runs in `finally` blocks to ensure working directories are removed (skipped in `--no-commit` mode)
 
 ## Key Implementation Details
 
@@ -133,6 +141,7 @@ JSON structure validated at load time:
 - **Mergeinfo fix**: After sparse checkout empty merge, non-inheritable markers must be removed manually (handled by `fix_mergeinfo_inheritance()`)
 - **Windows compatibility**: Special handling for file locks and readonly attributes during cleanup
 - **Dry run mode**: Skips all actual SVN operations but runs validation and shows execution plan
+- **No-commit mode**: Performs checkout and applies patches but skips commit step; workspace is preserved for manual review/commit
 - **Confirmation prompt**: Interactive `[y/N]` confirmation before execution (skip with `-y`)
 
 ## Adding New Patches
