@@ -108,7 +108,7 @@ Modular patch application framework:
 **EditorConfig Patch Details** (`editorconfig_encoding.py`):
 - Reads `.editorconfig` files from the checked-out SVN project (not the tool directory)
 - Automatically detects current file encodings using `charset-normalizer`
-- Encoding detection: always prefers cp1252 (Windows-1252) over other Windows code pages (cp1250, cp1251, etc.) when both are candidates, since cp1252 is the most common and misidentification is frequent
+- Encoding detection: overrides misidentified encodings to cp1252 (Windows-1252) when detecting other Windows code pages (cp1250, cp1251, etc.) or Mac encodings (mac_latin2, mac_roman, etc.), since cp1252 is the most common in Windows-based Western projects
 - Transforms encodings: supports UTF-8, UTF-8-BOM, UTF-16BE, UTF-16LE, Latin-1, Windows-1252
 - Normalizes line endings: LF, CRLF, CR
 - Handles UTF-8 BOM addition/removal based on target charset

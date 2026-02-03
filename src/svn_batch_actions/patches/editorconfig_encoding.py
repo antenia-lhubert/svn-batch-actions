@@ -90,12 +90,13 @@ def detect_encoding(file_path: Path) -> Optional[str]:
             if best and best.encoding:
                 best_encoding = normalize_encoding_name(best.encoding)
 
-                # Special handling: If charset-normalizer detected any cp12xx encoding
-                # (cp1250, cp1251, cp1253, cp1254, cp1255, cp1256, cp1257, cp1258)
-                # other than cp1252, override with cp1252 (Western European).
-                # These encodings are very similar, and cp1252 is by far the most common
-                # in Western projects. Misidentification is frequent with limited text samples.
-                if best_encoding.startswith("cp12") and best_encoding != "cp1252":
+                # Special handling for common misidentifications in Windows-based projects:
+                # 1. Any cp12xx encoding (cp1250, cp1251, etc.) other than cp1252
+                # 2. Any Mac encoding (mac_latin2, mac_roman, etc.)
+                # Override with cp1252 (Windows-1252, Western European) which is by far
+                # the most common in Windows-based Western projects. charset-normalizer
+                # frequently misidentifies cp1252 as other similar encodings with limited samples.
+                if (best_encoding.startswith("cp12") and best_encoding != "cp1252") or best_encoding.startswith("mac_"):
                     return "cp1252"
 
                 return best_encoding
