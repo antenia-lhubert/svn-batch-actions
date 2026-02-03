@@ -15,12 +15,14 @@ from typing import List
 
 # Import available patches
 from . import jsp_utf8
+from . import editorconfig_encoding
 
 
 # Registry of all available patches
 # Each patch module must have an apply(working_dir: Path, verbose: bool) function
 AVAILABLE_PATCHES = {
     "jsp_utf8": jsp_utf8,
+    "editorconfig_encoding": editorconfig_encoding,
 }
 
 

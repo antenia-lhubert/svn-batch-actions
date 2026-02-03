@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**IMPORTANT**: When making significant changes to the codebase (new features, architectural changes, new dependencies, or patches), update this file to reflect those changes. This ensures future AI sessions have accurate context about the project.
+
 ## Project Overview
 
 This is a Python tool for automating batch SVN operations, specifically designed for managing complex merge and patch workflows across SVN branches. The tool executes sequences of SVN actions defined in JSON configuration files, handling merges, patches, and commits with comprehensive logging.
@@ -76,9 +78,22 @@ Dual-format logging (text + JSON):
 Modular patch application framework:
 - **Registry pattern**: `AVAILABLE_PATCHES` dict in `__init__.py`
 - **Patch interface**: Each patch module must implement `apply(working_dir: Path, verbose: bool)`
-- **Current patches**: `jsp_utf8` (built-in)
+- **Current patches**:
+  - `jsp_utf8`: Converts JSP files to UTF-8 encoding
+  - `editorconfig_encoding`: Transforms file encodings and line endings based on `.editorconfig` rules
 - Called automatically when `"patch": true` in action config
 - Applies all registered patches unless `enabled_patches` list specified
+
+**EditorConfig Patch Details** (`editorconfig_encoding.py`):
+- Reads `.editorconfig` files from the checked-out SVN project (not the tool directory)
+- Automatically detects current file encodings using `charset-normalizer`
+- Transforms encodings: supports UTF-8, UTF-8-BOM, UTF-16BE, UTF-16LE, Latin-1, Windows-1252
+- Normalizes line endings: LF, CRLF, CR
+- Handles UTF-8 BOM addition/removal based on target charset
+- Skips binary files automatically (null-byte detection)
+- Supports nested `.editorconfig` files (standard EditorConfig behavior)
+- Continues on errors without stopping execution
+- Dependencies: `editorconfig>=0.12.0`, `charset-normalizer>=3.0.0`
 
 ### Configuration Format
 
@@ -126,5 +141,44 @@ JSON structure validated at load time:
 2. Implement: `def apply(working_dir: Path, verbose: bool = False) -> None:`
 3. Import in `patches/__init__.py`: `from . import my_patch`
 4. Add to `AVAILABLE_PATCHES`: `"my_patch": my_patch,`
+5. If adding new dependencies, update `pyproject.toml` dependencies array
+6. Run `pip install -e .` to install new dependencies
+7. **Update this CLAUDE.md file** with patch details in the Patch System section
 
 The patch will automatically apply when `"patch": true` is set in any action.
+
+### Using Patches in Config Files
+
+Apply specific patches:
+```json
+{
+  "actions": [{
+    "to": "branches/feature",
+    "patch": true,
+    "enabled_patches": ["editorconfig_encoding"],
+    "msg": "Apply encoding transformation"
+  }]
+}
+```
+
+Apply all patches:
+```json
+{
+  "actions": [{
+    "to": "branches/feature",
+    "patch": true,
+    "msg": "Apply all patches"
+  }]
+}
+```
+
+## Dependencies
+
+Runtime dependencies (defined in `pyproject.toml`):
+- **editorconfig>=0.12.0**: Parse `.editorconfig` files for encoding rules
+- **charset-normalizer>=3.0.0**: Accurate file encoding detection
+
+Development dependencies:
+- **black==24.8.0**: Code formatter (line length 120)
+- **build>=1.2.2.post1**: Build tool
+- **setuptools>=75.2.0**: Package build system
