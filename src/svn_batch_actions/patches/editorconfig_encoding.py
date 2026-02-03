@@ -85,9 +85,6 @@ def detect_encoding(file_path: Path) -> Optional[str]:
         results = from_path(file_path)
 
         if results:
-            # Build a map of all detected encodings
-            encodings_found = {normalize_encoding_name(r.encoding): r for r in results}
-
             # Get the best match
             best = results.best()
             if best and best.encoding:
@@ -95,13 +92,11 @@ def detect_encoding(file_path: Path) -> Optional[str]:
 
                 # Special handling: If charset-normalizer detected any cp12xx encoding
                 # (cp1250, cp1251, cp1253, cp1254, cp1255, cp1256, cp1257, cp1258)
-                # but cp1252 (Western European) is also a candidate, prefer cp1252.
+                # other than cp1252, override with cp1252 (Western European).
                 # These encodings are very similar, and cp1252 is by far the most common
-                # in Western projects. Misidentification is common with limited text samples.
+                # in Western projects. Misidentification is frequent with limited text samples.
                 if best_encoding.startswith("cp12") and best_encoding != "cp1252":
-                    if "cp1252" in encodings_found:
-                        # Always prefer cp1252 over other cp12xx variants
-                        return "cp1252"
+                    return "cp1252"
 
                 return best_encoding
     except Exception:
