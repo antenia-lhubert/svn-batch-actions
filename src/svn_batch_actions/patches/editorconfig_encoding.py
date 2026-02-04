@@ -129,6 +129,33 @@ def normalize_encoding_name(encoding: str) -> str:
     return ENCODING_ALIASES.get(encoding_lower, encoding_lower)
 
 
+def are_encodings_compatible(current: str, target: str) -> bool:
+    """
+    Check if current encoding is already compatible with target encoding.
+
+    Some encodings are subsets of others and don't require transformation:
+    - ASCII is a subset of UTF-8 (all ASCII bytes are valid UTF-8)
+
+    Args:
+        current: Current file encoding (normalized)
+        target: Target encoding (normalized)
+
+    Returns:
+        True if current encoding is compatible with target (no transformation needed)
+    """
+    # Identity check
+    if current == target:
+        return True
+
+    # ASCII is a subset of UTF-8
+    if current == "ascii" and target == "utf-8":
+        return True
+
+    # Note: ASCII → UTF-8-BOM is NOT compatible (needs BOM addition)
+
+    return False
+
+
 def normalize_line_endings(content: str, target: str) -> str:
     """
     Normalize line endings in text content.
@@ -198,10 +225,7 @@ def remove_utf8_bom(content_bytes: bytes) -> bytes:
 
 
 def transform_file_encoding(
-    file_path: Path,
-    target_charset: Optional[str],
-    target_line_ending: Optional[str],
-    verbose: bool
+    file_path: Path, target_charset: Optional[str], target_line_ending: Optional[str], verbose: bool
 ) -> bool:
     """
     Transform a file's encoding and/or line endings.
@@ -247,12 +271,18 @@ def transform_file_encoding(
             target_charset_normalized = None
 
         # Check if transformation is needed
-        needs_encoding_change = target_charset_normalized and current_encoding != target_charset_normalized
+        needs_encoding_change = target_charset_normalized and not are_encodings_compatible(
+            current_encoding, target_charset_normalized
+        )
         needs_line_ending_change = target_line_ending is not None
 
         if not needs_encoding_change and not needs_line_ending_change:
             if verbose:
-                print(f"  {file_path.name}: {current_encoding} (already correct)")
+                if current_encoding == target_charset_normalized:
+                    print(f"  {file_path.name}: {current_encoding} (already correct)")
+                else:
+                    # Compatible but different names (e.g., ascii is compatible with utf-8)
+                    print(f"  {file_path.name}: {current_encoding} (compatible with {target_charset_normalized})")
             return False
 
         # Read file content
@@ -260,7 +290,9 @@ def transform_file_encoding(
             with open(file_path, "r", encoding=current_encoding) as f:
                 content = f.read()
         except UnicodeDecodeError as e:
-            print(f"Warning: Could not decode {file_path} with detected encoding {current_encoding}: {e}", file=sys.stderr)
+            print(
+                f"Warning: Could not decode {file_path} with detected encoding {current_encoding}: {e}", file=sys.stderr
+            )
             return False
 
         # Apply line ending normalization if needed
@@ -285,12 +317,17 @@ def transform_file_encoding(
                     content_bytes = remove_utf8_bom(content_bytes)
         except UnicodeEncodeError as e:
             # Try with replace error handler
-            print(f"Warning: Some characters in {file_path} cannot be encoded to {output_encoding}, using replacement characters", file=sys.stderr)
+            print(
+                f"Warning: Some characters in {file_path} cannot be encoded to {output_encoding}, using replacement characters",
+                file=sys.stderr,
+            )
             try:
                 if needs_bom:
                     content_bytes = content.encode("utf-8-sig", errors="replace")
                 else:
-                    content_bytes = content.encode(output_encoding if output_encoding != "utf-8-sig" else "utf-8", errors="replace")
+                    content_bytes = content.encode(
+                        output_encoding if output_encoding != "utf-8-sig" else "utf-8", errors="replace"
+                    )
                     if output_encoding == "utf-8":
                         content_bytes = remove_utf8_bom(content_bytes)
             except Exception as e2:
@@ -408,10 +445,7 @@ def apply(working_dir: Path, verbose: bool = False) -> None:
     all_files = [f for f in working_dir.rglob("*") if f.is_file()]
 
     # Filter out ignored files
-    files_to_process = [
-        f for f in all_files
-        if not should_ignore(f, working_dir)
-    ]
+    files_to_process = [f for f in all_files if not should_ignore(f, working_dir)]
 
     if verbose:
         print(f"Found {len(files_to_process)} files (excluding ignored patterns)")
