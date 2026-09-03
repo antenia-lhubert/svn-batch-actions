@@ -54,7 +54,7 @@ class ActionLogger:
 
         self._log(msg)
 
-    def log_step(self, step_name: str, details: str = ""):
+    def log_step(self, step_name: str, details: str = "", always_print: bool = False):
         """Log a step within the current action."""
         timestamp = datetime.now().isoformat()
         step_data = {
@@ -71,7 +71,7 @@ class ActionLogger:
             msg += f"\n  {details}"
         msg += "\n"
 
-        self._log(msg)
+        self._log(msg, always_print=always_print)
 
     def log_files_modified(self, files: list[str]):
         """Log modified files."""
@@ -155,12 +155,12 @@ class ActionLogger:
             return self.actions_log[0].get("start_time", datetime.now().isoformat())
         return datetime.now().isoformat()
 
-    def _log(self, message: str, file=sys.stdout):
+    def _log(self, message: str, file=sys.stdout, always_print: bool = False):
         """Write message to log file and optionally to console."""
         with open(self.log_file, 'a', encoding='utf-8') as f:
             f.write(message)
 
-        if self.verbose:
+        if self.verbose or always_print:
             print(message, end='', file=file)
 
     @staticmethod

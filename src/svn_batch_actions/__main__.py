@@ -9,6 +9,10 @@ from .actions import ActionExecutor
 from .logger import ActionLogger
 
 
+VALID_CHECKOUT_DEPTHS = ("empty", "files", "immediates", "infinity")
+VALID_CONFLICT_RESOLUTIONS = ("mine-conflict", "theirs-conflict")
+
+
 def validate_action(action: dict, index: int) -> list[str]:
     """
     Validate a single action configuration.
@@ -52,6 +56,36 @@ def validate_action(action: dict, index: int) -> list[str]:
     if "patch" in action and not isinstance(action["patch"], bool):
         errors.append(f"Action {index + 1}: 'patch' must be true or false")
 
+    if "conflict_resolution" in action:
+        if action["conflict_resolution"] not in VALID_CONFLICT_RESOLUTIONS:
+            valid_resolutions = ", ".join(VALID_CONFLICT_RESOLUTIONS)
+            errors.append(
+                f"Action {index + 1}: 'conflict_resolution' must be one of: {valid_resolutions}"
+            )
+        if not has_from or action.get("empty", False):
+            errors.append(f"Action {index + 1}: 'conflict_resolution' is only valid for non-empty merge actions")
+
+    enabled_patches = action.get("enabled_patches")
+    if enabled_patches is not None and (
+        not isinstance(enabled_patches, list) or not all(isinstance(name, str) for name in enabled_patches)
+    ):
+        errors.append(f"Action {index + 1}: 'enabled_patches' must be a list of patch names")
+        enabled_patches = None
+
+    if "pom_version" in action:
+        if not isinstance(action["pom_version"], str) or not action["pom_version"].strip():
+            errors.append(f"Action {index + 1}: 'pom_version' must be a non-empty string")
+        if not action.get("patch", False):
+            errors.append(f"Action {index + 1}: 'pom_version' requires 'patch': true")
+        if enabled_patches is not None and "pom_version" not in enabled_patches:
+            errors.append(f"Action {index + 1}: 'pom_version' must be included in 'enabled_patches'")
+    elif enabled_patches is not None and "pom_version" in enabled_patches:
+        errors.append(f"Action {index + 1}: Patch 'pom_version' requires field 'pom_version'")
+
+    if "checkout_depth" in action and action["checkout_depth"] not in VALID_CHECKOUT_DEPTHS:
+        valid_depths = ", ".join(VALID_CHECKOUT_DEPTHS)
+        errors.append(f"Action {index + 1}: 'checkout_depth' must be one of: {valid_depths}")
+
     return errors
 
 
@@ -66,6 +100,10 @@ def validate_config(config: dict) -> list[str]:
     # Check required top-level fields
     if "repository_base" not in config:
         errors.append("Missing required field 'repository_base'")
+
+    if "checkout_depth" in config and config["checkout_depth"] not in VALID_CHECKOUT_DEPTHS:
+        valid_depths = ", ".join(VALID_CHECKOUT_DEPTHS)
+        errors.append(f"Field 'checkout_depth' must be one of: {valid_depths}")
 
     if "actions" not in config:
         errors.append("Missing required field 'actions'")
@@ -113,6 +151,8 @@ def print_action_summary(config: dict):
     print("ACTION SUMMARY")
     print("=" * 80)
     print(f"Repository: {config['repository_base']}")
+    if "checkout_depth" in config:
+        print(f"Checkout depth: {config['checkout_depth']}")
     print(f"Total actions: {len(config['actions'])}")
     print("\nActions to execute:")
 
@@ -123,6 +163,12 @@ def print_action_summary(config: dict):
         if "from" in action:
             print(f"     From: {action['from']} (r{action.get('rev', 'N/A')})")
         print(f"     To: {action['to']}")
+        if "checkout_depth" in action:
+            print(f"     Checkout depth: {action['checkout_depth']}")
+        if "conflict_resolution" in action:
+            print(f"     Conflict resolution: {action['conflict_resolution']}")
+        if "pom_version" in action:
+            print(f"     POM version: {action['pom_version']}")
         print(f"     Message: {action['msg'][:60]}{'...' if len(action['msg']) > 60 else ''}")
 
     print("\n" + "=" * 80)
@@ -234,6 +280,7 @@ Action types:
         dry_run=args.dry_run,
         no_commit=args.no_commit,
         apply_only=args.apply_only,
+        checkout_depth=config.get("checkout_depth"),
     )
 
     # Execute actions

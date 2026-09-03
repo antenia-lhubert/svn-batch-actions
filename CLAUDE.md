@@ -39,6 +39,7 @@ list-svn-branches <repo_url> [-p pattern] [-v] [-f] [-o output.txt]
 - `--dry-run`: Validate config and show execution plan without making any SVN changes
 - `--no-commit`: Checkout and apply patches but skip commit step; workspace is preserved for review
 - `--apply-only`: Skip checkout step; apply patches to existing workspace only (PATCH actions only)
+- **Checkout depth**: Optional `checkout_depth` config (`empty`, `files`, `immediates`, or `infinity`) controls regular checkouts; action-level values override the top-level default. Use `files` for project-root files only. Record-only merges always use `empty`.
 - `--verbose` / `-v`: Show detailed output including SVN command execution
 - `-y` / `--yes`: Skip interactive confirmation prompt
 - `--log-dir`: Override log directory from config
@@ -82,7 +83,8 @@ svn-batch todo.json --apply-only --no-commit -y
 #### 2. SVN Operations (`svn_batch_actions/utils.py`)
 Low-level SVN command wrappers:
 - **`svn_checkout()`**: Supports `--depth` for sparse checkouts (used in empty merges)
-- **`svn_merge()`**: Returns `(success, output)` tuple; detects conflicts differently for record-only vs regular merges
+- **`svn_merge()`**: Returns `(success, output)` tuple and checks working-copy status for unresolved conflicts after each merge
+- **Automatic conflict resolution**: Regular merge actions can set `conflict_resolution` to SVN's `mine-conflict` or `theirs-conflict` strategy. Unresolved text, property, and tree conflicts are detected with `svn status --xml` and still fail the action.
 - **`svn_commit()`**: Auto-adds files with `svn add --force`
 - **`fix_mergeinfo_inheritance()`**: Removes non-inheritable markers (`*`) from specific revisions in `svn:mergeinfo` property (addresses sparse checkout side effects)
 
@@ -102,8 +104,10 @@ Modular patch application framework:
 - **Current patches**:
   - `jsp_utf8`: Converts JSP files to UTF-8 encoding
   - `editorconfig_encoding`: Transforms file encodings and line endings based on `.editorconfig` rules
+  - `pom_version`: Sets the direct project `<version>` in the root `pom.xml` from the action's `pom_version` field; it does not change parent, dependency, or plugin versions
 - Called automatically when `"patch": true` in action config
 - Applies all registered patches unless `enabled_patches` list specified
+- Configurable patches declare `CONFIG_KEY`; they are included in the default patch set only when that action field is present
 
 **EditorConfig Patch Details** (`editorconfig_encoding.py`):
 - Reads `.editorconfig` files from the checked-out SVN project (not the tool directory)
@@ -146,7 +150,9 @@ JSON structure validated at load time:
 
 - **Stop on first failure**: Actions execute sequentially; first error stops execution
 - **Conflict detection**: Merge conflicts trigger `svn revert -R` and raise `SVNCommandError`
+- **Opt-in conflict resolution**: `conflict_resolution="mine-conflict"` keeps current target changes in conflicting regions; `conflict_resolution="theirs-conflict"` keeps incoming changes. Unresolved conflicts still trigger revert and failure.
 - **Detailed failure reporting**: Shows failed action config, error type, message, and optional traceback (`--verbose`)
+- **Commit visibility**: Successful SVN commit output, including the committed revision, is always printed even without `--verbose`
 - **Workspace cleanup**: Runs in `finally` blocks to ensure working directories are removed (skipped in `--no-commit` mode)
 
 ## Key Implementation Details
@@ -154,6 +160,7 @@ JSON structure validated at load time:
 - **Workspace isolation**: Each action checks out to `workspace/<branch-name>/` subdirectory
 - **Sparse checkouts for empty merges**: Uses `--depth empty` to minimize checkout size when only recording mergeinfo
 - **Mergeinfo fix**: After sparse checkout empty merge, non-inheritable markers must be removed manually (handled by `fix_mergeinfo_inheritance()`)
+- **Conflict handling**: Per-action `conflict_resolution` maps to `svn merge --accept mine-conflict|theirs-conflict` for regular merges only. The default remains to abort and revert on conflicts.
 - **Windows compatibility**: Special handling for file locks and readonly attributes during cleanup
 - **Dry run mode**: Skips all actual SVN operations but runs validation and shows execution plan
 - **No-commit mode**: Performs checkout and applies patches but skips commit step; workspace is preserved for manual review/commit

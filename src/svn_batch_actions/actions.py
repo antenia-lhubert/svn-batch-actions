@@ -27,6 +27,7 @@ class ActionExecutor:
         dry_run: bool = False,
         no_commit: bool = False,
         apply_only: bool = False,
+        checkout_depth: Optional[str] = None,
     ):
         self.repository_base = repository_base.rstrip("/")
         self.workspace = Path(workspace)
@@ -34,6 +35,7 @@ class ActionExecutor:
         self.dry_run = dry_run
         self.no_commit = no_commit
         self.apply_only = apply_only
+        self.checkout_depth = checkout_depth
 
         # Ensure workspace exists
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -75,6 +77,7 @@ class ActionExecutor:
         author = action.get("author")
         msg = action["msg"]
         enabled_patches = action.get("enabled_patches")
+        checkout_depth = action.get("checkout_depth", self.checkout_depth)
 
         self.logger.log_step("Starting patch operation")
 
@@ -96,10 +99,11 @@ class ActionExecutor:
                 cleanup_directory(working_dir, self.logger.verbose)
 
                 # Checkout target branch
-                self.logger.log_step("Checkout", f"Checking out {target_url}")
+                depth_details = f" (--depth {checkout_depth})" if checkout_depth else ""
+                self.logger.log_step("Checkout", f"Checking out {target_url}{depth_details}")
                 if not self.dry_run:
                     try:
-                        svn_checkout(target_url, working_dir, self.logger.verbose)
+                        svn_checkout(target_url, working_dir, self.logger.verbose, depth=checkout_depth)
                     except Exception as e:
                         raise SVNCommandError(f"Checkout failed for {target_url}\n{e}") from e
 
@@ -107,7 +111,7 @@ class ActionExecutor:
             self.logger.log_step("Apply patches", "Running patch script")
             if not self.dry_run:
                 try:
-                    self._apply_patches(working_dir, enabled_patches=enabled_patches)
+                    self._apply_patches(working_dir, enabled_patches=enabled_patches, action_config=action)
                 except Exception as e:
                     raise SVNCommandError(f"Patch application failed\n{e}") from e
 
@@ -129,7 +133,7 @@ class ActionExecutor:
                 if not self.dry_run:
                     try:
                         has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
-                        self.logger.log_step("Commit result", output)
+                        self.logger.log_step("Commit result", output, always_print=True)
                     except Exception as e:
                         raise SVNCommandError(f"Commit failed\n{e}") from e
 
@@ -203,7 +207,7 @@ class ActionExecutor:
                 if not self.dry_run:
                     try:
                         has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
-                        self.logger.log_step("Commit result", output)
+                        self.logger.log_step("Commit result", output, always_print=True)
                     except Exception as e:
                         raise SVNCommandError(f"Commit failed\n{e}") from e
 
@@ -224,6 +228,8 @@ class ActionExecutor:
         author = action.get("author")
         msg = action["msg"]
         enabled_patches = action.get("enabled_patches")
+        checkout_depth = action.get("checkout_depth", self.checkout_depth)
+        conflict_resolution = action.get("conflict_resolution")
 
         merge_type = "merge with patch" if with_patch else "merge"
         self.logger.log_step(f"Starting {merge_type}")
@@ -239,18 +245,25 @@ class ActionExecutor:
             cleanup_directory(working_dir, self.logger.verbose)
 
             # Checkout target branch
-            self.logger.log_step("Checkout", f"Checking out {target_url}")
+            depth_details = f" (--depth {checkout_depth})" if checkout_depth else ""
+            self.logger.log_step("Checkout", f"Checking out {target_url}{depth_details}")
             if not self.dry_run:
                 try:
-                    svn_checkout(target_url, working_dir, self.logger.verbose)
+                    svn_checkout(target_url, working_dir, self.logger.verbose, depth=checkout_depth)
                 except Exception as e:
                     raise SVNCommandError(f"Checkout failed for {target_url}\n{e}") from e
 
             # Perform merge
-            self.logger.log_step("Merge", f"From {from_branch} r{revision}")
+            conflict_details = f" (--accept {conflict_resolution})" if conflict_resolution else ""
+            self.logger.log_step("Merge", f"From {from_branch} r{revision}{conflict_details}")
             if not self.dry_run:
                 success, output = svn_merge(
-                    working_dir, source_url, revision, record_only=False, verbose=self.logger.verbose
+                    working_dir,
+                    source_url,
+                    revision,
+                    record_only=False,
+                    conflict_resolution=conflict_resolution,
+                    verbose=self.logger.verbose,
                 )
 
                 if not success:
@@ -269,7 +282,7 @@ class ActionExecutor:
                 self.logger.log_step("Apply patches", "Running patch script")
                 if not self.dry_run:
                     try:
-                        self._apply_patches(working_dir, enabled_patches=enabled_patches)
+                        self._apply_patches(working_dir, enabled_patches=enabled_patches, action_config=action)
                     except Exception as e:
                         raise SVNCommandError(f"Patch application failed after merge\n{e}") from e
 
@@ -291,7 +304,7 @@ class ActionExecutor:
                 if not self.dry_run:
                     try:
                         has_changes, output = svn_commit(working_dir, msg, author, self.logger.verbose)
-                        self.logger.log_step("Commit result", output)
+                        self.logger.log_step("Commit result", output, always_print=True)
                     except Exception as e:
                         raise SVNCommandError(f"Commit failed\n{e}") from e
 
@@ -304,19 +317,25 @@ class ActionExecutor:
             if not self.dry_run and not self.no_commit:
                 cleanup_directory(working_dir, self.logger.verbose)
 
-    def _apply_patches(self, working_dir: Path, enabled_patches: list[str] = None):
+    def _apply_patches(self, working_dir: Path, enabled_patches: list[str] = None, action_config: dict = None):
         """
         Apply patches using the patch system.
 
         Args:
             working_dir: Working directory to apply patches to
             enabled_patches: List of patch names to apply. If None, applies all available patches.
+            action_config: Configuration for the action invoking the patches
         """
         try:
             from .patches import patch
 
             # Apply patches (defaults to all if not specified)
-            patch(working_dir, enabled_patches=enabled_patches, verbose=self.logger.verbose)
+            patch(
+                working_dir,
+                enabled_patches=enabled_patches,
+                verbose=self.logger.verbose,
+                action_config=action_config,
+            )
 
         except Exception as e:
             raise SVNCommandError(f"Patch application failed: {e}") from e

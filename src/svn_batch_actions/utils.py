@@ -3,6 +3,7 @@
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from time import sleep
 from typing import Optional
@@ -93,7 +94,8 @@ def svn_merge(
     source_url: str,
     revision: int,
     record_only: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
+    conflict_resolution: Optional[str] = None,
 ) -> tuple[bool, str]:
     """
     Perform SVN merge.
@@ -106,6 +108,9 @@ def svn_merge(
     if record_only:
         merge_cmd.append("--record-only")
 
+    if conflict_resolution:
+        merge_cmd.extend(["--accept", conflict_resolution])
+
     merge_cmd.extend(["-c", str(revision), source_url])
 
     if verbose:
@@ -113,17 +118,10 @@ def svn_merge(
 
     result = run_command(merge_cmd, cwd=working_dir, check=False)
 
-    # Check for conflicts
-    if record_only:
-        # For record-only merges, only check for actual conflicts (marked with 'C')
-        # Skipped paths are expected with sparse checkouts and are not failures
-        output_combined = f"{result.stdout}\n{result.stderr}"
-        if any(line.strip().startswith('C ') for line in output_combined.splitlines()):
-            return False, f"Merge conflicts detected:\n{result.stdout}\n{result.stderr}"
-    else:
-        # For regular merges, any mention of conflict is a problem
-        if "conflict" in result.stdout.lower() or "conflict" in result.stderr.lower():
-            return False, f"Merge conflicts detected:\n{result.stdout}\n{result.stderr}"
+    conflicted_paths = get_conflicted_paths(working_dir)
+    if conflicted_paths:
+        paths = "\n".join(f"  - {path}" for path in conflicted_paths)
+        return False, f"Unresolved merge conflicts:\n{paths}\n\n{result.stdout}\n{result.stderr}"
 
     if result.returncode != 0:
         # Check if already merged
@@ -132,6 +130,32 @@ def svn_merge(
         return False, f"Merge failed:\n{result.stdout}\n{result.stderr}"
 
     return True, result.stdout
+
+
+def get_conflicted_paths(working_dir: Path) -> list[str]:
+    """Return paths with unresolved text, property, or tree conflicts."""
+    result = run_command(["svn", "status", "--xml"], cwd=working_dir, check=False)
+    if result.returncode != 0:
+        raise SVNCommandError(f"Unable to inspect working copy for conflicts:\n{result.stderr}")
+
+    try:
+        status = ET.fromstring(result.stdout)
+    except ET.ParseError as e:
+        raise SVNCommandError(f"Unable to parse SVN status while checking for conflicts: {e}") from e
+
+    conflicted_paths = []
+    for entry in status.findall(".//entry"):
+        wc_status = entry.find("wc-status")
+        if wc_status is None:
+            continue
+        if (
+            wc_status.get("item") == "conflicted"
+            or wc_status.get("props") == "conflicted"
+            or wc_status.get("tree-conflicted") == "true"
+        ):
+            conflicted_paths.append(entry.get("path", "<unknown>"))
+
+    return conflicted_paths
 
 
 def svn_commit(

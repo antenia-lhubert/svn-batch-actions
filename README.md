@@ -64,6 +64,7 @@ svn-batch merge.json -y
       "to": "branches/feature",
       "rev": "12345",
       "author": "username",
+      "conflict_resolution": "theirs-conflict",
       "patch": true,
       "enabled_patches": ["editorconfig_encoding"],
       "msg": "Merge r12345 from trunk and apply patches"
@@ -146,9 +147,56 @@ JSON config defines repository base, workspace, and action sequences:
   "repository_base": "svn://server/repo",
   "workspace": "./.temp",
   "log_dir": "./logs",
+  "checkout_depth": "files",
   "actions": [...]
 }
 ```
+
+To update the target project's root `pom.xml` version, enable the `pom_version` patch and provide the new version in the action:
+
+```json
+{
+  "to": "branches/feature",
+  "patch": true,
+  "enabled_patches": ["pom_version"],
+  "pom_version": "2.1.0",
+  "msg": "Set project version to 2.1.0"
+}
+```
+
+The patch changes only the `<version>` element directly under `<project>`. Parent, dependency, and plugin versions are not changed. If `enabled_patches` is omitted, this patch runs automatically when `pom_version` is present.
+
+`checkout_depth` is optional and accepts SVN's `empty`, `files`, `immediates`, or `infinity` values. Use `"files"` to check out the project root and only the files directly in it. It can also be set on an individual action, which overrides the top-level value:
+
+```json
+{
+  "to": "branches/feature",
+  "patch": true,
+  "checkout_depth": "files",
+  "msg": "Patch project root files"
+}
+```
+
+Record-only (`empty`) merges always use `--depth empty`, regardless of this setting. Successful commits always print the committed revision, even without `--verbose`.
+
+Regular merge actions can opt into automatic resolution of text and property conflicts with `conflict_resolution`. It accepts SVN's conflict-resolution terminology:
+
+- `mine-conflict`: Keep the current target-branch changes in conflicting regions.
+- `theirs-conflict`: Keep the incoming merge changes in conflicting regions.
+
+Both strategies preserve non-conflicting changes from the other side:
+
+```json
+{
+  "from": "trunk",
+  "to": "branches/feature",
+  "rev": "12345",
+  "conflict_resolution": "theirs-conflict",
+  "msg": "Merge r12345 using incoming changes for conflicts"
+}
+```
+
+The option is valid only for non-empty merge actions. Any conflict SVN cannot resolve automatically, including unresolved tree conflicts, still aborts the action and reverts the merge. Without `conflict_resolution`, the default abort-and-revert behavior is unchanged.
 
 ### Action Types
 
@@ -169,6 +217,7 @@ JSON config defines repository base, workspace, and action sequences:
   "to": "branches/feature",
   "rev": "12345",
   "author": "username",
+  "conflict_resolution": "theirs-conflict",
   "msg": "Merge r12345 from trunk: Fix login bug"
 }
 ```
@@ -276,3 +325,8 @@ Done. The patch will now run when `"patch": true` is set.
 - Normalizes line endings (LF, CRLF, CR)
 - Handles BOM addition/removal
 - Skips binary files automatically
+
+**`pom_version`**: Sets the direct project version in the target project's root `pom.xml` from the action's `pom_version` field
+- Preserves parent, dependency, and plugin versions
+- Preserves the rest of the POM without XML reformatting
+- Requires a UTF-8 encoded `pom.xml` with an existing direct project `<version>` element
