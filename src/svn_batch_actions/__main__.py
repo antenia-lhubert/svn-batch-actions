@@ -26,6 +26,7 @@ def validate_action(action: dict, index: int) -> list[str]:
     has_to = "to" in action
     has_rev = "rev" in action
     has_msg = "msg" in action
+    has_svn_ignore = "svn_ignore" in action
 
     # All actions require 'to' and 'msg'
     if not has_to:
@@ -81,6 +82,19 @@ def validate_action(action: dict, index: int) -> list[str]:
             errors.append(f"Action {index + 1}: 'pom_version' must be included in 'enabled_patches'")
     elif enabled_patches is not None and "pom_version" in enabled_patches:
         errors.append(f"Action {index + 1}: Patch 'pom_version' requires field 'pom_version'")
+
+    if has_svn_ignore:
+        svn_ignore = action["svn_ignore"]
+        if not isinstance(svn_ignore, str) or not svn_ignore.strip():
+            errors.append(f"Action {index + 1}: 'svn_ignore' must be a non-empty string")
+        elif "\n" in svn_ignore or "\r" in svn_ignore:
+            errors.append(f"Action {index + 1}: 'svn_ignore' must contain exactly one line")
+        if not action.get("patch", False):
+            errors.append(f"Action {index + 1}: 'svn_ignore' requires 'patch': true")
+        if enabled_patches is not None and "svn_ignore" not in enabled_patches:
+            errors.append(f"Action {index + 1}: 'svn_ignore' must be included in 'enabled_patches'")
+    elif enabled_patches is not None and "svn_ignore" in enabled_patches:
+        errors.append(f"Action {index + 1}: Patch 'svn_ignore' requires field 'svn_ignore'")
 
     if "checkout_depth" in action and action["checkout_depth"] not in VALID_CHECKOUT_DEPTHS:
         valid_depths = ", ".join(VALID_CHECKOUT_DEPTHS)
@@ -169,6 +183,8 @@ def print_action_summary(config: dict):
             print(f"     Conflict resolution: {action['conflict_resolution']}")
         if "pom_version" in action:
             print(f"     POM version: {action['pom_version']}")
+        if "svn_ignore" in action:
+            print(f"     SVN ignore entry: {action['svn_ignore']}")
         print(f"     Message: {action['msg'][:60]}{'...' if len(action['msg']) > 60 else ''}")
 
     print("\n" + "=" * 80)
@@ -222,7 +238,7 @@ Action types:
     parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
     parser.add_argument("--log-dir", type=str, help="Override log directory from config")
     parser.add_argument("--workspace", type=str, help="Override workspace directory from config")
-    parser.add_argument("--no-commit", action="store_true", help="Apply patches but skip commit and preserve workspace")
+    parser.add_argument("--no-commit", action="store_true", help="Apply changes but skip commit and preserve workspace")
     parser.add_argument(
         "--apply-only", action="store_true", help="Skip checkout; apply patches to existing workspace only"
     )

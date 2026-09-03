@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python tool for automating batch SVN operations, specifically designed for managing complex merge and patch workflows across SVN branches. The tool executes sequences of SVN actions defined in JSON configuration files, handling merges, patches, and commits with comprehensive logging.
+This is a Python tool for automating batch SVN operations, specifically designed for managing complex merge, patch, and property workflows across SVN branches. The tool executes sequences of SVN actions defined in JSON configuration files, handling merges, patches, SVN ignore entries, and commits with comprehensive logging.
 
 ## Development Commands
 
@@ -105,6 +105,7 @@ Modular patch application framework:
   - `jsp_utf8`: Converts JSP files to UTF-8 encoding
   - `editorconfig_encoding`: Transforms file encodings and line endings based on `.editorconfig` rules
   - `pom_version`: Sets the direct project `<version>` in the root `pom.xml` from the action's `pom_version` field; it does not change parent, dependency, or plugin versions
+  - `svn_ignore`: Idempotently adds the action's `svn_ignore` value as one line in the working-copy root's `svn:ignore` property, preserving its existing line-ending style
 - Called automatically when `"patch": true` in action config
 - Applies all registered patches unless `enabled_patches` list specified
 - Configurable patches declare `CONFIG_KEY`; they are included in the default patch set only when that action field is present
@@ -159,6 +160,7 @@ JSON structure validated at load time:
 
 - **Workspace isolation**: Each action checks out to `workspace/<branch-name>/` subdirectory
 - **Sparse checkouts for empty merges**: Uses `--depth empty` to minimize checkout size when only recording mergeinfo
+- **Sparse checkout for the SVN ignore patch**: An action enabling only `svn_ignore` can set `checkout_depth` to `empty` because only the target root's property is changed
 - **Mergeinfo fix**: After sparse checkout empty merge, non-inheritable markers must be removed manually (handled by `fix_mergeinfo_inheritance()`)
 - **Conflict handling**: Per-action `conflict_resolution` maps to `svn merge --accept mine-conflict|theirs-conflict` for regular merges only. The default remains to abort and revert on conflicts.
 - **Windows compatibility**: Special handling for file locks and readonly attributes during cleanup

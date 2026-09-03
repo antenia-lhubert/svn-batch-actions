@@ -20,6 +20,7 @@ from typing import List
 from . import jsp_utf8
 from . import editorconfig_encoding
 from . import pom_version
+from . import svn_ignore
 
 
 # Registry of all available patches
@@ -28,6 +29,7 @@ AVAILABLE_PATCHES = {
     "jsp_utf8": jsp_utf8,
     "editorconfig_encoding": editorconfig_encoding,
     "pom_version": pom_version,
+    "svn_ignore": svn_ignore,
 }
 
 

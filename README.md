@@ -1,6 +1,6 @@
 # SVN Batch Actions
 
-Automate batch SVN operations with JSON-driven workflows. Execute merges, patches, and commits across multiple branches using modular, composable actions.
+Automate batch SVN operations with JSON-driven workflows. Execute merges, patches, property updates, and commits across multiple branches using modular, composable actions.
 
 ## Installation
 
@@ -18,7 +18,7 @@ svn-batch config.json [options]
 
 **Options:**
 - `--dry-run` - Validate config and show execution plan without making changes
-- `--no-commit` - Checkout and apply patches but skip commit (preserves workspace for review)
+- `--no-commit` - Checkout and apply changes but skip commit (preserves workspace for review)
 - `--apply-only` - Skip checkout and apply patches to existing workspace only
 - `-y` / `--yes` - Skip confirmation prompt
 - `--verbose` / `-v` - Show detailed output
@@ -151,6 +151,26 @@ JSON config defines repository base, workspace, and action sequences:
   "actions": [...]
 }
 ```
+
+### Example 7: Add an SVN ignore entry
+
+```json
+{
+  "repository_base": "svn://server/repo",
+  "actions": [
+    {
+      "to": "branches/feature",
+      "patch": true,
+      "enabled_patches": ["svn_ignore"],
+      "svn_ignore": "target",
+      "checkout_depth": "empty",
+      "msg": "Ignore Maven build output"
+    }
+  ]
+}
+```
+
+The `svn_ignore` patch adds `target` as a line in the target branch root's `svn:ignore` property. Existing entries are preserved. `checkout_depth` can be `empty` when this is the only enabled patch because no project files are needed.
 
 To update the target project's root `pom.xml` version, enable the `pom_version` patch and provide the new version in the action:
 
@@ -330,3 +350,9 @@ Done. The patch will now run when `"patch": true` is set.
 - Preserves parent, dependency, and plugin versions
 - Preserves the rest of the POM without XML reformatting
 - Requires a UTF-8 encoded `pom.xml` with an existing direct project `<version>` element
+
+**`svn_ignore`**: Adds one line to the target project's root `svn:ignore` property
+- Preserves existing ignore entries
+- Preserves the property's existing line-ending style
+- Does nothing when the exact line is already present
+- Uses the action's required `svn_ignore` field
