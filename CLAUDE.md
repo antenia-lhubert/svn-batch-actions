@@ -29,7 +29,7 @@ black .
 ### Running the Tools
 ```bash
 # Main tool: Execute SVN batch actions from a config file
-svn-batch <config.json> [--dry-run] [--verbose] [-y] [--no-commit] [--apply-only]
+svn-batch <config.json> [--dry-run] [--verbose] [-y] [--no-commit] [--no-cleanup] [--apply-only]
 
 # List SVN branches with filtering
 list-svn-branches <repo_url> [-p pattern] [-v] [-f] [-o output.txt]
@@ -38,6 +38,7 @@ list-svn-branches <repo_url> [-p pattern] [-v] [-f] [-o output.txt]
 **Command-line options:**
 - `--dry-run`: Validate config and show execution plan without making any SVN changes
 - `--no-commit`: Checkout and apply patches but skip commit step; workspace is preserved for review
+- `--no-cleanup`: Skip directory deletion before checkout and after every action, on success or error; commits still run. Works with all action types and `--apply-only`. Checkout and conflict-triggered SVN revert still run as usual.
 - `--apply-only`: Skip checkout step; apply patches to existing workspace only (PATCH actions only)
 - **Checkout depth**: Optional `checkout_depth` config (`empty`, `files`, `immediates`, or `infinity`) controls regular checkouts; action-level values override the top-level default. Use `files` for project-root files only. Record-only merges always use `empty`.
 - `--verbose` / `-v`: Show detailed output including SVN command execution
@@ -55,6 +56,9 @@ svn-batch todo.json --apply-only -y
 
 # Apply patches to existing workspace without committing (for manual review)
 svn-batch todo.json --apply-only --no-commit -y
+
+# Apply and commit patches to an existing project, keeping its directory even on error
+svn-batch todo.json --apply-only --no-cleanup -y
 ```
 
 ## Architecture
@@ -154,7 +158,7 @@ JSON structure validated at load time:
 - **Opt-in conflict resolution**: `conflict_resolution="mine-conflict"` keeps current target changes in conflicting regions; `conflict_resolution="theirs-conflict"` keeps incoming changes. Unresolved conflicts still trigger revert and failure.
 - **Detailed failure reporting**: Shows failed action config, error type, message, and optional traceback (`--verbose`)
 - **Commit visibility**: Successful SVN commit output, including the committed revision, is always printed even without `--verbose`
-- **Workspace cleanup**: Runs in `finally` blocks to ensure working directories are removed (skipped in `--no-commit` mode)
+- **Workspace cleanup**: Runs in `finally` blocks to ensure working directories are removed (skipped in `--no-commit` or `--no-cleanup` mode). `--no-cleanup` also skips pre-checkout directory deletion. Dry runs skip all directory cleanup.
 
 ## Key Implementation Details
 

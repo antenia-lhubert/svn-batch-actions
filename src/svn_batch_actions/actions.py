@@ -28,6 +28,7 @@ class ActionExecutor:
         no_commit: bool = False,
         apply_only: bool = False,
         checkout_depth: Optional[str] = None,
+        no_cleanup: bool = False,
     ):
         self.repository_base = repository_base.rstrip("/")
         self.workspace = Path(workspace)
@@ -36,6 +37,7 @@ class ActionExecutor:
         self.no_commit = no_commit
         self.apply_only = apply_only
         self.checkout_depth = checkout_depth
+        self.no_cleanup = no_cleanup
 
         # Ensure workspace exists
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -95,8 +97,9 @@ class ActionExecutor:
                         f"Workspace does not exist: {working_dir}\nCheckout the branch first or run without --apply-only"
                     )
             else:
-                # Clean up existing directory
-                cleanup_directory(working_dir, self.logger.verbose)
+                # Preserve existing directories in no-cleanup and dry-run modes.
+                if not self.dry_run and not self.no_cleanup:
+                    cleanup_directory(working_dir, self.logger.verbose)
 
                 # Checkout target branch
                 depth_details = f" (--depth {checkout_depth})" if checkout_depth else ""
@@ -142,8 +145,8 @@ class ActionExecutor:
             return True
 
         finally:
-            # Skip cleanup in no-commit mode to preserve workspace
-            if not self.dry_run and not self.no_commit:
+            # Preserve workspace when requested, including after errors.
+            if not self.dry_run and not self.no_commit and not self.no_cleanup:
                 cleanup_directory(working_dir, self.logger.verbose)
 
     def _execute_empty_merge(self, action: dict) -> bool:
@@ -163,8 +166,9 @@ class ActionExecutor:
         working_dir = self.workspace / branch_name
 
         try:
-            # Clean up existing directory
-            cleanup_directory(working_dir, self.logger.verbose)
+            # Preserve existing directories in no-cleanup and dry-run modes.
+            if not self.dry_run and not self.no_cleanup:
+                cleanup_directory(working_dir, self.logger.verbose)
 
             # Checkout target branch (sparse checkout for empty merge)
             self.logger.log_step("Checkout", f"Checking out {target_url} (--depth empty)")
@@ -216,8 +220,8 @@ class ActionExecutor:
             return True
 
         finally:
-            # Skip cleanup in no-commit mode to preserve workspace
-            if not self.dry_run and not self.no_commit:
+            # Preserve workspace when requested, including after errors.
+            if not self.dry_run and not self.no_commit and not self.no_cleanup:
                 cleanup_directory(working_dir, self.logger.verbose)
 
     def _execute_merge(self, action: dict, with_patch: bool = False) -> bool:
@@ -241,8 +245,9 @@ class ActionExecutor:
         working_dir = self.workspace / branch_name
 
         try:
-            # Clean up existing directory
-            cleanup_directory(working_dir, self.logger.verbose)
+            # Preserve existing directories in no-cleanup and dry-run modes.
+            if not self.dry_run and not self.no_cleanup:
+                cleanup_directory(working_dir, self.logger.verbose)
 
             # Checkout target branch
             depth_details = f" (--depth {checkout_depth})" if checkout_depth else ""
@@ -313,8 +318,8 @@ class ActionExecutor:
             return True
 
         finally:
-            # Skip cleanup in no-commit mode to preserve workspace
-            if not self.dry_run and not self.no_commit:
+            # Preserve workspace when requested, including after errors.
+            if not self.dry_run and not self.no_commit and not self.no_cleanup:
                 cleanup_directory(working_dir, self.logger.verbose)
 
     def _apply_patches(self, working_dir: Path, enabled_patches: list[str] = None, action_config: dict = None):

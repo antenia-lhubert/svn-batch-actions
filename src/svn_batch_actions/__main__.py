@@ -240,6 +240,9 @@ Action types:
     parser.add_argument("--workspace", type=str, help="Override workspace directory from config")
     parser.add_argument("--no-commit", action="store_true", help="Apply changes but skip commit and preserve workspace")
     parser.add_argument(
+        "--no-cleanup", action="store_true", help="Preserve workspace directories before checkout and after success or error"
+    )
+    parser.add_argument(
         "--apply-only", action="store_true", help="Skip checkout; apply patches to existing workspace only"
     )
 
@@ -275,6 +278,10 @@ Action types:
         print("\n[NO COMMIT MODE] - Changes will be applied but not committed")
         print(f"Workspace will be preserved at: {workspace.resolve()}")
 
+    if args.no_cleanup:
+        print("\n[NO CLEANUP MODE] - Workspace directories will be preserved on success and error")
+        print(f"Workspace location: {workspace.resolve()}")
+
     if args.apply_only:
         print("\n[APPLY ONLY MODE] - Skipping checkout; patches will be applied to existing workspace")
         print(f"Expected workspace location: {workspace.resolve()}")
@@ -297,6 +304,7 @@ Action types:
         no_commit=args.no_commit,
         apply_only=args.apply_only,
         checkout_depth=config.get("checkout_depth"),
+        no_cleanup=args.no_cleanup,
     )
 
     # Execute actions

@@ -19,6 +19,7 @@ svn-batch config.json [options]
 **Options:**
 - `--dry-run` - Validate config and show execution plan without making changes
 - `--no-commit` - Checkout and apply changes but skip commit (preserves workspace for review)
+- `--no-cleanup` - Preserve workspace directories before checkout and after success or error (commits still run)
 - `--apply-only` - Skip checkout and apply patches to existing workspace only
 - `-y` / `--yes` - Skip confirmation prompt
 - `--verbose` / `-v` - Show detailed output
@@ -99,6 +100,17 @@ svn-batch patch.json --apply-only -y
 ```
 
 Skips checkout, applies patches to already-checked-out workspace, then commits.
+
+To keep your existing project directory after completion or an error:
+
+```bash
+svn-batch patch.json --apply-only --no-cleanup -y
+```
+
+`--no-cleanup` works with all action types and can also be used without `--apply-only`.
+It skips directory deletion both before checkout and after each action, including failed actions
+and actions with no changes. Working copies remain at `workspace/<branch-name>/`.
+Checkout still runs unless `--apply-only` is specified; merge conflicts still trigger the usual SVN revert.
 
 ### Example 6: Multiple actions in sequence
 
